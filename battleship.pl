@@ -4,7 +4,8 @@
 run :-
     start_game,
     play_game,
-    end_game.
+    end_game,
+    !.
 
 %% Initializes the game
 start_game :-
@@ -13,21 +14,26 @@ start_game :-
     write('Enter \'Y.\' to start...'),
     nl,
     read(Yes),
-    (Yes = 'Y' ; Yes = 'y').
+    (Yes = 'Y' ; Yes = 'y'),
+    !.
 
 %% Starts the play sequence
 play_game :-
-    write('Let\'s play!'),
-    nl,
     open('./board.txt', read, Stream),
     readStream(Stream, Board),
     validateBoard(Board),
+    write('Let\'s play!'),
+    nl,
     generateComputerBoard(ComputerBoard),
     assert( board(player_primary, Board) ),
     show_board(Board),
     board(empty_board, EB),
     assert( board(player_tracking, EB) ),
-    player_turn.
+    player_turn;
+    write("Invalid board input."),
+    nl,
+    write("Please correct the input board and type 'run.' again."),
+    fail.
 
 %% Ends the game
 end_game :-
@@ -236,7 +242,7 @@ spacesOccupied([S|B],N) :- S = 1, spacesOccupied(B,N1), N is N1+1.
 spacesOccupied([S|B],N) :- S \= 1, spacesOccupied(B,N).
 
 % Generates a valid random board for the computer opponent
-generateComputerBoard(B) :- repeat, N = 3, createEmptyBoard(BA),placeShips(N,BA,B),(validateBoard(B) -> true, ! ; fail), write(B).
+generateComputerBoard(B) :- repeat, N = 3, createEmptyBoard(BA),placeShips(N,BA,B),(validateBoard(B) -> true, ! ; fail).
 
 % Places multiple ships on a board
 placeShips(0,B,B).
