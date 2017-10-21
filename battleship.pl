@@ -7,18 +7,15 @@ run :-
     readStream(B, X),
     write(X),
     validateBoard(X),
+    generateComputerBoard(CB),
     !
     .
-    
+
 % Determines whether a board is valid for this game
 validateBoard(B) :-
     length(B,25),
     spacesOccupied(B,6),
-    occupiedValid(B,3),
-    nl,
-    write('Welcome to Battleship!');
-    nl,
-    write("Board invalid. Please try again.").
+    occupiedValid(B,3).
 
 % Determines if the spaces in a given board are occupied in a valid way.
 % In other words, are the 2X1 ship placements valid?
@@ -79,6 +76,54 @@ sliceList([],0,0,_).
 spacesOccupied([],0).
 spacesOccupied([S|B],N) :- S = 1, spacesOccupied(B,N1), N is N1+1.
 spacesOccupied([S|B],N) :- S \= 1, spacesOccupied(B,N).
+
+% Generates a valid random board for the computer opponent
+generateComputerBoard(B) :- repeat, N = 3, createEmptyBoard(BA),placeShips(N,BA,B),(validateBoard(B) -> true, ! ; fail), write(B).
+
+% Places multiple ships on a board
+placeShips(0,B,B).
+placeShips(N,BA,B) :- placeShip(BA,BR), N1 is N-1, placeShips(N1,BR,B).
+
+% Places a single ship on a board
+placeShip(B,BR) :-
+    randomPosition(P), 
+    positionAvailable(B,P), 
+    findAdjacents(P,L), 
+    length(L,LL), 
+    LL1 is LL-1,
+    random_between(0,LL1,I1),
+    nth0(I1,L,P1),
+    positionAvailable(B,P1),
+    replaceNth(B,P,1,BT),
+    replaceNth(BT,P1,1,BR).
+    
+% Finds the adjacent squares
+findAdjacents(P,L) :- member(P,[6,7,8,11,12,13,16,17,18]), P1 is P-5, P2 is P-1, P3 is P+1, P4 is P+5, L = [P1,P2,P3,P4].
+findAdjacents(P,L) :- member(P,[1,2,3]), P1 is P-1, P2 is P+1, P3 is P+5, L = [P1,P2,P3].
+findAdjacents(P,L) :- member(P,[5,10,15]), P1 is P-5, P2 is P+1, P3 is P+5, L = [P1,P2,P3].
+findAdjacents(P,L) :- member(P,[9,14,19]), P1 is P-5, P2 is P-1, P3 is P+5, L = [P1,P2,P3].
+findAdjacents(P,L) :- member(P,[21,22,23]), P1 is P-5, P2 is P-1,P3 is P+1, L = [P1,P2,P3].
+findAdjacents(P,L) :- P = 0, L = [1,5].
+findAdjacents(P,L) :- P = 4, L = [3,9].
+findAdjacents(P,L) :- P = 20, L = [15,21].
+findAdjacents(P,L) :- P = 24, L = [19,23].
+
+% Returns true if the position chosen is unused
+positionAvailable(B,P) :- nth0(P,B,0).
+
+% replaceNth(L,P,V,R). Replaces nth element in list with a given value
+replaceNth([_|T],0,V,[V|T]).
+replaceNth([H|T],P,V,[H|R]) :- P > 0, P < 25, P1 is P - 1, replaceNth(T,P1,V,R). 
+
+% Choose a random position on the board
+randomPosition(P) :- random_between(0,24,P).
+
+% Creates an empty board
+createEmptyBoard(R) :- listOfZeros(25,R).
+
+% Creates a list of zeros
+listOfZeros(0,[]).
+listOfZeros(N,[0|R]) :- N1 is N-1, N1 >= 0, listOfZeros(N1,R).
 
 % Reads a single list from the board file.
 readStream(Stream, Result) :-
