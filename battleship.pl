@@ -9,7 +9,8 @@ run :-
     validateBoard(X),
     !
     .
-
+    
+% Determines whether a board is valid for this game
 validateBoard(B) :-
     length(B,25),
     spacesOccupied(B,6),
@@ -19,6 +20,8 @@ validateBoard(B) :-
     nl,
     write("Board invalid. Please try again.").
 
+% Determines if the spaces in a given board are occupied in a valid way.
+% In other words, are the 2X1 ship placements valid?
 occupiedValid(B,NST) :-
     getRow(0,B,R0),
     countShips(R0,CR0,0,NS1),
@@ -46,6 +49,7 @@ occupiedValid(B,NST) :-
     countShips(C4,_,NS9,NS10),
     NS10 = NST.
 
+% Counts the number of ships on the given board
 countShips([],[],A,A).
 countShips([H|T],[H|CR],A,N) :- dif(H,1),countShips(T,CR,A,N).
 countShips([1],[1],A,A).
@@ -55,19 +59,23 @@ countShips([1,1,1|T],[0,0,1|CR],A,N) :- A1 is A+1, countShips(T,CR,A1,N).
 countShips([1,1,1|T],[1,1,1|CR],A,N) :- countShips(T,CR,A,N).
 countShips([1,1|T],[0,0|CR],A,N) :- A1 is A+1, countShips(T,CR,A1,N).
 
+% Finds the elements for the given column number in the 5x5 board; zero indexed
 getColumn(N,_,[]) :- N>24.
-getColumn(N,B,R) :-
-    nth0(N,B,A), N1 is N+5, getColumn(N1,B,R1), R = [A|R1].
+getColumn(N,B,C) :-
+    nth0(N,B,A), N1 is N+5, getColumn(N1,B,C1), C = [A|C1].
 
+% Finds the elements for the given row number in the 5x5 board; zero indexed
 getRow(N,B,R) :-
-    N1 is N*5, N2 is N1+5, sublist(R,N1,N2,B).
+    N1 is N*5, N2 is N1+5, sliceList(R,N1,N2,B).
 
-sublist(L,S,E,[_|T]):- 
-    S>0, S<E, sublist(L,S-1,E-1,T).
-sublist(L,S,E,[H|T]):- 
-    0 is S, S<E, E2 is E-1, L=[H|T1], sublist(T1,0,E2,T).
-sublist([],0,0,_).
+% Slices a list to create a smaller list given starting and ending positions
+sliceList(L,S,E,[_|T]):- 
+    S>0, S<E, sliceList(L,S-1,E-1,T).
+sliceList(L,S,E,[H|T]):- 
+    0 is S, S<E, E2 is E-1, L=[H|T1], sliceList(T1,0,E2,T).
+sliceList([],0,0,_).
 
+% Determines how many spaces are occupied on the board
 spacesOccupied([],0).
 spacesOccupied([S|B],N) :- S = 1, spacesOccupied(B,N1), N is N1+1.
 spacesOccupied([S|B],N) :- S \= 1, spacesOccupied(B,N).
