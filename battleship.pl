@@ -19,8 +19,7 @@ start_game :-
 
 %% Starts the play sequence
 play_game :-
-    open('./board.txt', read, Stream),
-    readStream(Stream, Board),
+    catch(readFile(Board),error(E,_),fail),
     validateBoard(Board),
     write('Let\'s play!'),
     nl,
@@ -291,3 +290,7 @@ createEmptyBoard(R) :- listOfZeros(25,R).
 % Creates a list of zeros
 listOfZeros(0,[]).
 listOfZeros(N,[0|R]) :- N1 is N-1, N1 >= 0, listOfZeros(N1,R).
+
+readFile(Board) :-
+    open('./board.txt', read, Stream),
+    readStream(Stream, Board).
