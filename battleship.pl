@@ -25,10 +25,13 @@ play_game :-
     write('Let\'s play!'),
     nl,
     generateComputerBoard(ComputerBoard),
+    assert( board(computer_primary, ComputerBoard)),
     assert( board(player_primary, Board) ),
     show_board(Board),
     board(empty_board, EB),
+    createEmptyBoard(EBC),
     assert( board(player_tracking, EB) ),
+    assert( board(computer_tracking, EBC) ),
     player_turn;
     write("Invalid board input."),
     nl,
