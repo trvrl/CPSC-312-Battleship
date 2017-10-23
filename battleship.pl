@@ -30,7 +30,7 @@ play_game :-
 
     % Generates computer boards
     generateComputerBoard(ComputerBoard),
-    assert( board(computer_primary, ComputerBoard)),
+    assert( board(computer_primary, ComputerBoard) ),
     assert( board(computer_tracking, Empty) ),
 
     % Player Starts First
@@ -46,38 +46,35 @@ end_game :-
     retract( game_won ).
 
 %% Reads the move of a player
-read_move :-
+read_validate_move :-
     write('Make your next move! fire(Row, Col)'), nl,
-    safe_read_move.
+    repeat, (
+        (catch(read(fire(Row, Col)), error(_, _), false),
+        validate(Row, Col),
+        assert( current_move(Row, Col) )
+        ) -> true;
+        (write('That\'s not a valid move. :( Try again.'), nl)
+    ).
 
-% Successful user input
-safe_read_move :-
-    read(fire(Row, Col)),
-    assert( current_move(Row, Col) ).
+validate(Row, Col) :-
+    number(Row), number(Col),
+    turn(player),
+    board(computer_primary, ComputerBoard),
+    canAttempt(coord(Row, Col), ComputerBoard).
 
-% Failed user input, retry
-safe_read_move :-
-    write('That\'s not a valid move. :( Try again.'), nl,
-    safe_read_move.
+validate(Row, Col) :-
+    number(Row), number(Col),
+    turn(computer),
+    board(player_primary, PlayerBoard),
+    canAttempt(coord(Row, Col), PlayerBoard).
 
-validate_move :-
-    current_move(Row, Col),
-    coord(Row, Col),
-    write('Your move was valid!'), nl.
-
-% Wrong move. Grab another move.
-validate_move :-
-    write('Your move was not valid. Try again.'),
-    retract( current_move(_, _) ),
-    safe_read_move.
 
 % On player turn; If the chosen square is empty (has a value of 0), 
 % updates computer_primary board and player_tracking board to a miss
 % (to a value of 2)
 update_boards :-
     turn(player),
-    current_move(Row,Col),
-    toIndex(coord(Row,Col),Index),
+    current_move(Index),
     board(computer_primary,ComputerBoard),
     nth0(Index,ComputerBoard,0),
     board(player_tracking,PlayerTrackingBoard),
@@ -95,8 +92,7 @@ update_boards :-
 % (to a value of 3) 
 update_boards :-
     turn(player),
-    current_move(Row,Col),
-    toIndex(coord(Row,Col),Index),
+    current_move(Index),
     board(computer_primary,ComputerBoard),
     nth0(Index,ComputerBoard,1),
     board(player_tracking,PlayerTrackingBoard),
@@ -165,8 +161,7 @@ player_turn :-
     \+ game_won,
     write('Your turn!'), nl,
     assert( turn(player) ),
-    read_move,
-    validate_move,
+    read_validate_move,
     update_boards,
     \+ check_win,
     turn_result,
@@ -180,12 +175,12 @@ computer_turn :-
     \+ game_won,
     write('Your enemy\'s turn. >:('), nl,
     assert( turn(computer) ),
-    read_move,
-    validate_move,
+    computer_make_move,
     update_boards,
     \+ check_win,
     show_player,
     turn_result,
+    react,
     retract( turn(computer) ),
     retract( current_move(_,_) ),
     player_turn.
@@ -455,26 +450,55 @@ readFile(Board) :-
     readStream(Stream, Board).
 
 %% Cleans up all the asserted predicates.
-cleanup :-
+clean :-
     clean_player_primary,
     clean_player_tracking,
     clean_computer_primary,
     clean_computer_tracking,
     clean_turn,
     clean_attempt,
-    clean_current_move.
+    clean_current_move,
+    !.
 
-clean_player_primary :- retract( board(player_primary,_) ), clean_player_primary.
-clean_player_primary :- \+ retract( board(player_primary,_) ).
-clean_player_tracking :- retract( board(player_tracking,_) ), clean_player_tracking.
-clean_player_tracking :- \+ retract( board(player_tracking,_) ).
-clean_computer_primary :- retract( board(computer_primary,_) ), clean_computer_primary.
-clean_computer_primary :- \+ retract( board(computer_primary,_) ).
-clean_computer_tracking :- retract( board(computer_tracking,_) ), clean_computer_tracking.
-clean_computer_tracking :- \+ retract( board(computer_tracking,_) ).
-clean_turn :- retract( turn(_) ), clean_turn.
-clean_turn :- \+ retract( turn(_) ).
-clean_attempt :- retract( hit_attempt(_) ), clean_attempt.
-clean_attempt :- \+ retract( hit_attempt(_) ).
-clean_current_move :- retract( current_move(_, _) ), clean_current_move.
-clean_current_move :- \+ retract( current_move(_, _) ).
+clean_player_primary :- repeat, (retract( board(player_primary,_) ) -> false; true).
+clean_player_tracking :- repeat, (retract( board(player_tracking,_) ) -> false; true).
+clean_computer_primary :- repeat, (retract( board(computer_primary,_) ) -> false; true).
+clean_computer_tracking :- repeat, (retract( board(computer_tracking,_) ) -> false; true).
+clean_turn :- repeat, (retract( turn(_) ) -> false; true).
+clean_attempt :- repeat, (retract( hit_attempt(_) ) -> false; true).
+clean_current_move :- repeat, (retract( current_move(_, _) ) -> false; true).
+
+%% AI
+computer_turn :-
+    turn(computer),
+    computer_mode(destroy(Index)).
+
+computer_turn :-
+    turn(computer),
+    computer_mode(hunt).
+
+% If computer is in destroy mode and misses, keep going.
+react :-
+    computer_mode(destroy(_)),
+    hit_attempt(miss).
+
+react :-
+    computer_mode(destroy(_)),
+    hit_attempt(hit),
+    retract( destroy(_) ),
+    assert( hunt ).
+
+react :-
+    computer_mode(hunt),
+    hit_attempt(miss).
+
+react :-
+    computer_mode(hunt),
+    hit_attempt(hit),
+    retract( hunt ),
+    current_move(Index),
+    assert( destroy(Index) ).
+
+react :-
+    \+ computer_mode(_),
+    assert( computer_mode(hunt) ).
