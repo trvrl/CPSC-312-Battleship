@@ -1,4 +1,6 @@
-:- dynamic game_won/0.
+:- dynamic game_won/0, current_move/2, turn/1, hit_attempt/1, turn_result/1.
+
+current_move(Index) :- current_move(Row, Col), toIndex(coord(Row, Col), Index).
 
 %% Runs the game
 run :-
@@ -11,30 +13,30 @@ run :-
 start_game :-
     write('Welcome to Battleship'),
     nl,
-    write('Enter \'Y.\' to start...'),
-    nl,
-    read(Yes),
-    (Yes = 'Y' ; Yes = 'y'),
     !.
 
 %% Starts the play sequence
 play_game :-
     catch(readFile(Board),error(_,_),fail),
     validateBoard(Board),
-    write('Let\'s play!'),
-    nl,
+    write('Let\'s play!'), nl,
+
+    board(empty_board, Empty),
+
+    % Generates human boards
+    assert( board(player_primary, Board) ),
+    assert( board(player_tracking, Empty) ),
+    show_player,
+
+    % Generates computer boards
     generateComputerBoard(ComputerBoard),
     assert( board(computer_primary, ComputerBoard)),
-    assert( board(player_primary, Board) ),
-    show_board(Board),
-    board(empty_board, EB),
-    createEmptyBoard(EBC),
-    assert( board(player_tracking, EB) ),
-    assert( board(computer_tracking, EBC) ),
+    assert( board(computer_tracking, Empty) ),
+
+    % Player Starts First
     player_turn;
-    write("Invalid board input."),
-    nl,
-    write("Please correct the input board and type 'run.' again."),
+    write('Invalid board input.'), nl,
+    write('Please correct the input board and type \'run.\' again.'),
     fail.
 
 %% Ends the game
@@ -66,12 +68,12 @@ validate_move :-
 % Wrong move. Grab another move.
 validate_move :-
     write('Your move was not valid. Try again.'),
-    retract( current_move(_) ),
+    retract( current_move(_, _) ),
     safe_read_move.
 
 % On player turn; If the chosen square is empty (has a value of 0), 
 % updates computer_primary board and player_tracking board to a miss
-% (to a value of 2)  
+% (to a value of 2)
 update_boards :-
     turn(player),
     current_move(Row,Col),
@@ -82,6 +84,7 @@ update_boards :-
     nth0(Index,PlayerTrackingBoard,0),
     replaceNth(ComputerBoard,Index,2,NewComputerBoard),
     replaceNth(PlayerTrackingBoard,Index,2,NewPlayerTrackingBoard),
+    update_attempt_miss,
     retract(board(computer_primary,_)),
     retract(board(player_tracking,_)),
     assert(board(computer_primary,NewComputerBoard)),
@@ -100,6 +103,7 @@ update_boards :-
     nth0(Index,PlayerTrackingBoard,0),
     replaceNth(ComputerBoard,Index,3,NewComputerBoard),
     replaceNth(PlayerTrackingBoard,Index,3,NewPlayerTrackingBoard),
+    update_attempt_hit,
     retract(board(computer_primary,_)),
     retract(board(player_tracking,_)),
     assert(board(computer_primary,NewComputerBoard)),
@@ -110,47 +114,47 @@ update_boards :-
 % (to a value of 2)  
 update_boards :-
     turn(computer),
-    current_move(Row,Col),
-    toIndex(coord(Row,Col),Index),
+    current_move(Index),
     board(player_primary,PlayerBoard),
     nth0(Index,PlayerBoard,0),
     board(computer_tracking,ComputerTrackingBoard),
     nth0(Index,ComputerTrackingBoard,0),
     replaceNth(PlayerBoard,Index,2,NewPlayerBoard),
     replaceNth(ComputerTrackingBoard,Index,2,NewComputerTrackingBoard),
-    retract(board(player_primary,_)),
-    retract(board(computer_tracking,_)),
-    assert(board(player_primary,NewPlayerBoard)),
-    assert(board(computer_tracking,NewComputerTrackingBoard)). 
+    update_attempt_miss,
+    retract( board(player_primary,_) ),
+    retract( board(computer_tracking,_) ),
+    assert( board(player_primary,NewPlayerBoard) ),
+    assert( board(computer_tracking,NewComputerTrackingBoard) ). 
 
 % On computer turn; If the chosen square has a ship (has a value of 1), 
 % updates player_primary board and computer_tracking board to a hit
 % (to a value of 3) 
 update_boards :-
     turn(computer),
-    current_move(Row,Col),
-    toIndex(coord(Row,Col),Index),
+    current_move(Index),
     board(player_primary,PlayerBoard),
     nth0(Index,PlayerBoard,1),
     board(computer_tracking,ComputerTrackingBoard),
     nth0(Index,ComputerTrackingBoard,0),
     replaceNth(PlayerBoard,Index,3,NewPlayerBoard),
     replaceNth(ComputerTrackingBoard,Index,3,NewComputerTrackingBoard),
-    retract(board(player_primary,_)),
-    retract(board(computer_tracking,_)),
-    assert(board(player_primary,NewPlayerBoard)),
-    assert(board(computer_tracking,NewComputerTrackingBoard)).  
+    update_attempt_hit,
+    retract( board(player_primary,_) ),
+    retract( board(computer_tracking,_) ),
+    assert( board(player_primary,NewPlayerBoard) ),
+    assert( board(computer_tracking,NewComputerTrackingBoard) ).  
 
 check_win :-
     turn(player),
-    write('Player Check Win'), nl,
+    write('Checkng if you won...'), nl,
     board(player_tracking,Board),
     spacesOccupied(Board,6,3),
     assert( game_won ),!.
 
 check_win :-
     turn(computer),
-    write('Computer Check Win'), nl,
+    write('Checking if your enemy has won...'), nl,
     board(computer_tracking,Board),
     spacesOccupied(Board,6,3),
     assert( game_won ),!.
@@ -159,28 +163,31 @@ player_turn :- game_won.
 
 player_turn :-
     \+ game_won,
-    write('Player\'s turn.'),
-    assert(turn(player)),
+    write('Your turn!'), nl,
+    assert( turn(player) ),
     read_move,
     validate_move,
     update_boards,
     \+ check_win,
-    retract(turn(player)),
-    retract(current_move(_,_)),
+    turn_result,
+    retract( turn(player) ),
+    retract( current_move(_,_) ),
     computer_turn.
 
 computer_turn :- game_won.
 
 computer_turn :-
     \+ game_won,
-    assert(turn(computer)),
-    write('Computer\'s turn.'),
+    write('Your enemy\'s turn. >:('), nl,
+    assert( turn(computer) ),
     read_move,
     validate_move,
     update_boards,
     \+ check_win,
-    retract(turn(computer)),
-    retract(current_move(_,_)),
+    show_player,
+    turn_result,
+    retract( turn(computer) ),
+    retract( current_move(_,_) ),
     player_turn.
 
 % Reads a single list from the board file.
@@ -246,11 +253,18 @@ board(
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     ).
 
+%% Displays boards to the player
+toDisplay(0, ' ').
+toDisplay(1, '◼︎').
+toDisplay(2, '◎').
+toDisplay(3, '✕').
+
 show_board(B) :- show_line, show_board(B, 0).
 
 show_board([H|T], N) :-
     next_line(N),
-    show_space(H),
+    toDisplay(H, Disp),
+    show_space(Disp),
     N1 = N + 1,
     show_board(T, N1).
 
@@ -260,6 +274,67 @@ show_space(Space) :- write('| '), write(Space), write(' ').
 show_line :- write('+-------------------+'), nl.
 next_line(N) :- ((X is mod(N, 5), X > 0); N = 0).
 next_line(N) :- \+ N = 0, 0 is mod(N, 5), write('|'), nl, show_line.
+
+update_attempt_hit :- retract( hit_attempt(_) ), update_attempt_hit.
+update_attempt_hit :- \+ retract( hit_attempt(_) ), assert( hit_attempt(hit) ).
+
+update_attempt_miss :- retract( hit_attempt(_) ), update_attempt_miss.
+update_attempt_miss :- \+ retract( hit_attempt(_) ), assert( hit_attempt(miss) ).
+
+show_player :-
+    board(player_tracking, PlayerTracking),
+    board(player_primary, PlayerBoard),
+    write('+---- Your Enemy ---+'), nl,
+    show_board(PlayerTracking), nl,
+    write('+---- Your Ships ---+'), nl,
+    show_board(PlayerBoard).
+
+% Shows the player the result of the current turn.
+turn_result :- 
+    hit_attempt(hit),
+    turn(player),
+    current_move(Row, Col),
+    write('Your attempt hit a ship at ('),
+    write(Row), write(', '), write(Col),
+    write(')! :D'), nl.
+
+turn_result :- 
+    hit_attempt(sink),
+    turn(player),
+    write('Your sunk their ship!'), nl.
+
+turn_result :-
+    hit_attempt(miss),
+    turn(player),
+    write('You missed!'), nl.
+
+turn_result :- 
+    hit_attempt(hit),
+    turn(computer),
+    current_move(Row, Col),
+    write('Your enemy hit you at ('),
+    write(Row), write(', '), write(Col),
+    write(')! :('), nl.
+
+turn_result :- 
+    hit_attempt(miss),
+    turn(computer),
+    current_move(Row, Col),
+    write('Your enemy fired at ('),
+    write(Row), write(', '), write(Col),
+    write(') but they missed! :D'), nl.
+    
+turn_result :- 
+    hit_attempt(sink),
+    turn(computer),
+    current_move(Row, Col),
+    write('Your enemy sunk you ship at ('),
+    write(Row), write(', '), write(Col),
+    write(')! D:'), nl.
+
+turn_result :-
+    \+ hit_attempt(_),
+    write('No turn attempted!'), nl.
 
 % Determines whether a board is valid for this game
 validateBoard(B) :-
@@ -378,3 +453,28 @@ listOfZeros(N,[0|R]) :- N1 is N-1, N1 >= 0, listOfZeros(N1,R).
 readFile(Board) :-
     open('./board.txt', read, Stream),
     readStream(Stream, Board).
+
+%% Cleans up all the asserted predicates.
+cleanup :-
+    clean_player_primary,
+    clean_player_tracking,
+    clean_computer_primary,
+    clean_computer_tracking,
+    clean_turn,
+    clean_attempt,
+    clean_current_move.
+
+clean_player_primary :- retract( board(player_primary,_) ), clean_player_primary.
+clean_player_primary :- \+ retract( board(player_primary,_) ).
+clean_player_tracking :- retract( board(player_tracking,_) ), clean_player_tracking.
+clean_player_tracking :- \+ retract( board(player_tracking,_) ).
+clean_computer_primary :- retract( board(computer_primary,_) ), clean_computer_primary.
+clean_computer_primary :- \+ retract( board(computer_primary,_) ).
+clean_computer_tracking :- retract( board(computer_tracking,_) ), clean_computer_tracking.
+clean_computer_tracking :- \+ retract( board(computer_tracking,_) ).
+clean_turn :- retract( turn(_) ), clean_turn.
+clean_turn :- \+ retract( turn(_) ).
+clean_attempt :- retract( hit_attempt(_) ), clean_attempt.
+clean_attempt :- \+ retract( hit_attempt(_) ).
+clean_current_move :- retract( current_move(_, _) ), clean_current_move.
+clean_current_move :- \+ retract( current_move(_, _) ).
