@@ -142,10 +142,18 @@ update_boards :-
     assert(board(computer_tracking,NewComputerTrackingBoard)).  
 
 check_win :-
-    write('Wanna win?'), nl,
-    read(X),
-    X = 'Y',
-    assert( game_won ).
+    turn(player),
+    write('Player Check Win'), nl,
+    board(player_tracking,Board),
+    spacesOccupied(Board,6,3),
+    assert( game_won ),!.
+
+check_win :-
+    turn(computer),
+    write('Computer Check Win'), nl,
+    board(computer_tracking,Board),
+    spacesOccupied(Board,6,3),
+    assert( game_won ),!.
 
 player_turn :- game_won.
 
@@ -156,8 +164,9 @@ player_turn :-
     read_move,
     validate_move,
     update_boards,
-    check_win,
+    \+ check_win,
     retract(turn(player)),
+    retract(current_move(_,_)),
     computer_turn.
 
 computer_turn :- game_won.
@@ -169,8 +178,9 @@ computer_turn :-
     read_move,
     validate_move,
     update_boards,
-    check_win,
+    \+ check_win,
     retract(turn(computer)),
+    retract(current_move(_,_)),
     player_turn.
 
 % Reads a single list from the board file.
@@ -229,7 +239,7 @@ canAttempt(Coord, B) :-
 
 check_board([H|T], N) :- (H = 1; H = 2), check_board(T, N).
 check_board([3|T], N) :- N1 = N + 1, check_board(T, N1).
-check_board([], 8).
+check_board([], 6).
 
 board(
     empty_board, 
