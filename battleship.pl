@@ -19,7 +19,7 @@ start_game :-
 
 %% Starts the play sequence
 play_game :-
-    catch(readFile(Board),error(E,_),fail),
+    catch(readFile(Board),error(_,_),fail),
     validateBoard(Board),
     write('Let\'s play!'),
     nl,
@@ -69,7 +69,77 @@ validate_move :-
     retract( current_move(_) ),
     safe_read_move.
 
-update_boards.
+% On player turn; If the chosen square is empty (has a value of 0), 
+% updates computer_primary board and player_tracking board to a miss
+% (to a value of 2)  
+update_boards :-
+    turn(player),
+    current_move(Row,Col),
+    toIndex(coord(Row,Col),Index),
+    board(computer_primary,ComputerBoard),
+    nth0(Index,ComputerBoard,0),
+    board(player_tracking,PlayerTrackingBoard),
+    nth0(Index,PlayerTrackingBoard,0),
+    replaceNth(ComputerBoard,Index,2,NewComputerBoard),
+    replaceNth(PlayerTrackingBoard,Index,2,NewPlayerTrackingBoard),
+    retract(board(computer_primary,_)),
+    retract(board(player_tracking,_)),
+    assert(board(computer_primary,NewComputerBoard)),
+    assert(board(player_tracking,NewPlayerTrackingBoard)). 
+
+% On player turn; If the chosen square has a ship (has a value of 1), 
+% updates computer_primary board and player_tracking board to a hit
+% (to a value of 3) 
+update_boards :-
+    turn(player),
+    current_move(Row,Col),
+    toIndex(coord(Row,Col),Index),
+    board(computer_primary,ComputerBoard),
+    nth0(Index,ComputerBoard,1),
+    board(player_tracking,PlayerTrackingBoard),
+    nth0(Index,PlayerTrackingBoard,0),
+    replaceNth(ComputerBoard,Index,3,NewComputerBoard),
+    replaceNth(PlayerTrackingBoard,Index,3,NewPlayerTrackingBoard),
+    retract(board(computer_primary,_)),
+    retract(board(player_tracking,_)),
+    assert(board(computer_primary,NewComputerBoard)),
+    assert(board(player_tracking,NewPlayerTrackingBoard)).
+
+% On computer turn; If the chosen square is empty (has a value of 0), 
+% updates player_primary board and computer_tracking board to a miss
+% (to a value of 2)  
+update_boards :-
+    turn(computer),
+    current_move(Row,Col),
+    toIndex(coord(Row,Col),Index),
+    board(player_primary,PlayerBoard),
+    nth0(Index,PlayerBoard,0),
+    board(computer_tracking,ComputerTrackingBoard),
+    nth0(Index,ComputerTrackingBoard,0),
+    replaceNth(PlayerBoard,Index,2,NewPlayerBoard),
+    replaceNth(ComputerTrackingBoard,Index,2,NewComputerTrackingBoard),
+    retract(board(player_primary,_)),
+    retract(board(computer_tracking,_)),
+    assert(board(player_primary,NewPlayerBoard)),
+    assert(board(computer_tracking,NewComputerTrackingBoard)). 
+
+% On computer turn; If the chosen square has a ship (has a value of 1), 
+% updates player_primary board and computer_tracking board to a hit
+% (to a value of 3) 
+update_boards :-
+    turn(computer),
+    current_move(Row,Col),
+    toIndex(coord(Row,Col),Index),
+    board(player_primary,PlayerBoard),
+    nth0(Index,PlayerBoard,1),
+    board(computer_tracking,ComputerTrackingBoard),
+    nth0(Index,ComputerTrackingBoard,0),
+    replaceNth(PlayerBoard,Index,3,NewPlayerBoard),
+    replaceNth(ComputerTrackingBoard,Index,3,NewComputerTrackingBoard),
+    retract(board(player_primary,_)),
+    retract(board(computer_tracking,_)),
+    assert(board(player_primary,NewPlayerBoard)),
+    assert(board(computer_tracking,NewComputerTrackingBoard)).  
 
 check_win :-
     write('Wanna win?'), nl,
@@ -82,21 +152,25 @@ player_turn :- game_won.
 player_turn :-
     \+ game_won,
     write('Player\'s turn.'),
+    assert(turn(player)),
     read_move,
     validate_move,
     update_boards,
     check_win,
+    retract(turn(player)),
     computer_turn.
 
 computer_turn :- game_won.
 
 computer_turn :-
     \+ game_won,
+    assert(turn(computer)),
     write('Computer\'s turn.'),
     read_move,
     validate_move,
     update_boards,
     check_win,
+    retract(turn(computer)),
     player_turn.
 
 % Reads a single list from the board file.
