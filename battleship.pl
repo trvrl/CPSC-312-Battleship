@@ -4,7 +4,8 @@
 run :-
     start_game,
     play_game,
-    end_game.
+    end_game,
+    !.
 
 %% Initializes the game
 start_game :-
@@ -13,21 +14,28 @@ start_game :-
     write('Enter \'Y.\' to start...'),
     nl,
     read(Yes),
-    (Yes = 'Y' ; Yes = 'y').
+    (Yes = 'Y' ; Yes = 'y'),
+    !.
 
 %% Starts the play sequence
 play_game :-
+    catch(readFile(Board),error(_,_),fail),
+    validateBoard(Board),
     write('Let\'s play!'),
     nl,
-    open('./board.txt', read, Stream),
-    readStream(Stream, Board),
-    validateBoard(Board),
     generateComputerBoard(ComputerBoard),
+    assert( board(computer_primary, ComputerBoard)),
     assert( board(player_primary, Board) ),
     show_board(Board),
     board(empty_board, EB),
+    createEmptyBoard(EBC),
     assert( board(player_tracking, EB) ),
-    player_turn.
+    assert( board(computer_tracking, EBC) ),
+    player_turn;
+    write("Invalid board input."),
+    nl,
+    write("Please correct the input board and type 'run.' again."),
+    fail.
 
 %% Ends the game
 end_game :-
@@ -61,34 +69,118 @@ validate_move :-
     retract( current_move(_) ),
     safe_read_move.
 
-update_boards.
+% On player turn; If the chosen square is empty (has a value of 0), 
+% updates computer_primary board and player_tracking board to a miss
+% (to a value of 2)  
+update_boards :-
+    turn(player),
+    current_move(Row,Col),
+    toIndex(coord(Row,Col),Index),
+    board(computer_primary,ComputerBoard),
+    nth0(Index,ComputerBoard,0),
+    board(player_tracking,PlayerTrackingBoard),
+    nth0(Index,PlayerTrackingBoard,0),
+    replaceNth(ComputerBoard,Index,2,NewComputerBoard),
+    replaceNth(PlayerTrackingBoard,Index,2,NewPlayerTrackingBoard),
+    retract(board(computer_primary,_)),
+    retract(board(player_tracking,_)),
+    assert(board(computer_primary,NewComputerBoard)),
+    assert(board(player_tracking,NewPlayerTrackingBoard)). 
+
+% On player turn; If the chosen square has a ship (has a value of 1), 
+% updates computer_primary board and player_tracking board to a hit
+% (to a value of 3) 
+update_boards :-
+    turn(player),
+    current_move(Row,Col),
+    toIndex(coord(Row,Col),Index),
+    board(computer_primary,ComputerBoard),
+    nth0(Index,ComputerBoard,1),
+    board(player_tracking,PlayerTrackingBoard),
+    nth0(Index,PlayerTrackingBoard,0),
+    replaceNth(ComputerBoard,Index,3,NewComputerBoard),
+    replaceNth(PlayerTrackingBoard,Index,3,NewPlayerTrackingBoard),
+    retract(board(computer_primary,_)),
+    retract(board(player_tracking,_)),
+    assert(board(computer_primary,NewComputerBoard)),
+    assert(board(player_tracking,NewPlayerTrackingBoard)).
+
+% On computer turn; If the chosen square is empty (has a value of 0), 
+% updates player_primary board and computer_tracking board to a miss
+% (to a value of 2)  
+update_boards :-
+    turn(computer),
+    current_move(Row,Col),
+    toIndex(coord(Row,Col),Index),
+    board(player_primary,PlayerBoard),
+    nth0(Index,PlayerBoard,0),
+    board(computer_tracking,ComputerTrackingBoard),
+    nth0(Index,ComputerTrackingBoard,0),
+    replaceNth(PlayerBoard,Index,2,NewPlayerBoard),
+    replaceNth(ComputerTrackingBoard,Index,2,NewComputerTrackingBoard),
+    retract(board(player_primary,_)),
+    retract(board(computer_tracking,_)),
+    assert(board(player_primary,NewPlayerBoard)),
+    assert(board(computer_tracking,NewComputerTrackingBoard)). 
+
+% On computer turn; If the chosen square has a ship (has a value of 1), 
+% updates player_primary board and computer_tracking board to a hit
+% (to a value of 3) 
+update_boards :-
+    turn(computer),
+    current_move(Row,Col),
+    toIndex(coord(Row,Col),Index),
+    board(player_primary,PlayerBoard),
+    nth0(Index,PlayerBoard,1),
+    board(computer_tracking,ComputerTrackingBoard),
+    nth0(Index,ComputerTrackingBoard,0),
+    replaceNth(PlayerBoard,Index,3,NewPlayerBoard),
+    replaceNth(ComputerTrackingBoard,Index,3,NewComputerTrackingBoard),
+    retract(board(player_primary,_)),
+    retract(board(computer_tracking,_)),
+    assert(board(player_primary,NewPlayerBoard)),
+    assert(board(computer_tracking,NewComputerTrackingBoard)).  
 
 check_win :-
-    write('Wanna win?'), nl,
-    read(X),
-    X = 'Y',
-    assert( game_won ).
+    turn(player),
+    write('Player Check Win'), nl,
+    board(player_tracking,Board),
+    spacesOccupied(Board,6,3),
+    assert( game_won ),!.
+
+check_win :-
+    turn(computer),
+    write('Computer Check Win'), nl,
+    board(computer_tracking,Board),
+    spacesOccupied(Board,6,3),
+    assert( game_won ),!.
 
 player_turn :- game_won.
 
 player_turn :-
     \+ game_won,
     write('Player\'s turn.'),
+    assert(turn(player)),
     read_move,
     validate_move,
     update_boards,
-    check_win,
+    \+ check_win,
+    retract(turn(player)),
+    retract(current_move(_,_)),
     computer_turn.
 
 computer_turn :- game_won.
 
 computer_turn :-
     \+ game_won,
+    assert(turn(computer)),
     write('Computer\'s turn.'),
     read_move,
     validate_move,
     update_boards,
-    check_win,
+    \+ check_win,
+    retract(turn(computer)),
+    retract(current_move(_,_)),
     player_turn.
 
 % Reads a single list from the board file.
@@ -147,7 +239,7 @@ canAttempt(Coord, B) :-
 
 check_board([H|T], N) :- (H = 1; H = 2), check_board(T, N).
 check_board([3|T], N) :- N1 = N + 1, check_board(T, N1).
-check_board([], 8).
+check_board([], 6).
 
 board(
     empty_board, 
@@ -172,7 +264,7 @@ next_line(N) :- \+ N = 0, 0 is mod(N, 5), write('|'), nl, show_line.
 % Determines whether a board is valid for this game
 validateBoard(B) :-
     length(B,25),
-    spacesOccupied(B,6),
+    spacesOccupied(B,6,1),
     occupiedValid(B,3).
 
 % Determines if the spaces in a given board are occupied in a valid way.
@@ -230,13 +322,13 @@ sliceList(L,S,E,[H|T]):-
     0 is S, S<E, E2 is E-1, L=[H|T1], sliceList(T1,0,E2,T).
 sliceList([],0,0,_).
 
-% Determines how many spaces are occupied on the board
-spacesOccupied([],0).
-spacesOccupied([S|B],N) :- S = 1, spacesOccupied(B,N1), N is N1+1.
-spacesOccupied([S|B],N) :- S \= 1, spacesOccupied(B,N).
+% Determines how many spaces are occupied with value V on the board
+spacesOccupied([],0,_).
+spacesOccupied([S|B],N,V) :- number(V), S = V, spacesOccupied(B,N1,V), N is N1+1.
+spacesOccupied([S|B],N,V) :- number(V), S \= V, spacesOccupied(B,N,V).
 
 % Generates a valid random board for the computer opponent
-generateComputerBoard(B) :- repeat, N = 3, createEmptyBoard(BA),placeShips(N,BA,B),(validateBoard(B) -> true, ! ; fail), write(B).
+generateComputerBoard(B) :- repeat, N = 3, createEmptyBoard(BA),placeShips(N,BA,B),(validateBoard(B) -> true, ! ; fail).
 
 % Places multiple ships on a board
 placeShips(0,B,B).
@@ -282,3 +374,7 @@ createEmptyBoard(R) :- listOfZeros(25,R).
 % Creates a list of zeros
 listOfZeros(0,[]).
 listOfZeros(N,[0|R]) :- N1 is N-1, N1 >= 0, listOfZeros(N1,R).
+
+readFile(Board) :-
+    open('./board.txt', read, Stream),
+    readStream(Stream, Board).
