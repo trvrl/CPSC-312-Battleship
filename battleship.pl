@@ -254,7 +254,7 @@ next_line(N) :- \+ N = 0, 0 is mod(N, 5), write('|'), nl, show_line.
 % Determines whether a board is valid for this game
 validateBoard(B) :-
     length(B,25),
-    spacesOccupied(B,6),
+    spacesOccupied(B,6,1),
     occupiedValid(B,3).
 
 % Determines if the spaces in a given board are occupied in a valid way.
@@ -312,10 +312,10 @@ sliceList(L,S,E,[H|T]):-
     0 is S, S<E, E2 is E-1, L=[H|T1], sliceList(T1,0,E2,T).
 sliceList([],0,0,_).
 
-% Determines how many spaces are occupied on the board
-spacesOccupied([],0).
-spacesOccupied([S|B],N) :- S = 1, spacesOccupied(B,N1), N is N1+1.
-spacesOccupied([S|B],N) :- S \= 1, spacesOccupied(B,N).
+% Determines how many spaces are occupied with value V on the board
+spacesOccupied([],0,_).
+spacesOccupied([S|B],N,V) :- number(V), S = V, spacesOccupied(B,N1,V), N is N1+1.
+spacesOccupied([S|B],N,V) :- number(V), S \= V, spacesOccupied(B,N,V).
 
 % Generates a valid random board for the computer opponent
 generateComputerBoard(B) :- repeat, N = 3, createEmptyBoard(BA),placeShips(N,BA,B),(validateBoard(B) -> true, ! ; fail).
