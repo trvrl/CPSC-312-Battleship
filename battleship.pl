@@ -283,9 +283,9 @@ board(
 
 %% Displays boards to the player
 toDisplay(0, ' ').
-toDisplay(1, '◼︎').
-toDisplay(2, '◎').
-toDisplay(3, '✕').
+toDisplay(1, 'S').
+toDisplay(2, 'M').
+toDisplay(3, 'H').
 
 show_board(B) :- show_line, show_board(B, 0).
 
