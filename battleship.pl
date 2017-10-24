@@ -1,9 +1,10 @@
-:- dynamic game_won/0, current_move/2, turn/1, hit_attempt/1, turn_result/1.
+:- dynamic game_won/0, current_move/2, turn/1, hit_attempt/1, turn_result/1, computer_mode/1.
 
 current_move(Index) :- current_move(Row, Col), toIndex(coord(Row, Col), Index).
 
 %% Runs the game
 run :-
+    clean,
     start_game,
     play_game,
     end_game,
@@ -26,14 +27,15 @@ play_game :-
     % Generates human boards
     assert( board(player_primary, Board) ),
     assert( board(player_tracking, Empty) ),
-    show_player,
 
     % Generates computer boards
     generateComputerBoard(ComputerBoard),
     assert( board(computer_primary, ComputerBoard) ),
     assert( board(computer_tracking, Empty) ),
+    assert( computer_mode(hunt) ),
 
     % Player Starts First
+    show_player,
     player_turn;
     write('Invalid board input.'), nl,
     write('Please correct the input board and type \'run.\' again.'),
@@ -53,8 +55,8 @@ read_validate_move :-
         validate(Row, Col),
         assert( current_move(Row, Col) )
         ) -> true;
-        (write('That\'s not a valid move. :( Try again.'), nl)
-    ).
+        (write('That\'s not a valid move. :( Try again.'), nl, fail)
+    ),!.
 
 validate(Row, Col) :-
     number(Row), number(Col),
@@ -139,21 +141,43 @@ update_boards :-
     retract( board(player_primary,_) ),
     retract( board(computer_tracking,_) ),
     assert( board(player_primary,NewPlayerBoard) ),
-    assert( board(computer_tracking,NewComputerTrackingBoard) ).  
+    assert( board(computer_tracking,NewComputerTrackingBoard) ).
+
+update_boards :- turn(player), \+ current_move(_), read_validate_move.
 
 check_win :-
     turn(player),
     write('Checkng if you won...'), nl,
-    board(player_tracking,Board),
-    spacesOccupied(Board,6,3),
-    assert( game_won ),!.
+    board(computer_primary,Board),
+    spacesOccupied(Board, 6, 3),
+    assert( game_won ),
+    !
+    .
+
+check_win :-
+    turn(player),
+    board(computer_primary,Board),
+    \+ spacesOccupied(Board, 6, 3),
+    write('Player hasn\'t won...:(\n'),
+    !
+    .
 
 check_win :-
     turn(computer),
     write('Checking if your enemy has won...'), nl,
-    board(computer_tracking,Board),
-    spacesOccupied(Board,6,3),
-    assert( game_won ),!.
+    board(player_primary,Board),
+    spacesOccupied(Board, 6, 3),
+    assert( game_won ),
+    !
+    .
+
+check_win :-
+    turn(computer),
+    board(player_primary,Board),
+    \+ spacesOccupied(Board, 6, 3),
+    write('Computer hasn\'t won...:D\n'),
+    !
+    .
 
 player_turn :- game_won.
 
@@ -163,8 +187,8 @@ player_turn :-
     assert( turn(player) ),
     read_validate_move,
     update_boards,
-    \+ check_win,
     turn_result,
+    check_win,
     retract( turn(player) ),
     retract( current_move(_,_) ),
     computer_turn.
@@ -175,15 +199,15 @@ computer_turn :-
     \+ game_won,
     write('Your enemy\'s turn. >:('), nl,
     assert( turn(computer) ),
-    computer_make_move,
+    computer_move,
     update_boards,
-    \+ check_win,
     show_player,
     turn_result,
+    check_win,
     react,
     retract( turn(computer) ),
     retract( current_move(_,_) ),
-    player_turn.
+    player_turn,!.
 
 % Reads a single list from the board file.
 readStream(Stream, Result) :-
@@ -239,8 +263,9 @@ canAttempt(Coord, B) :-
     get(B, Index, Space),
     \+ attempted(Space).
 
-check_board([H|T], N) :- (H = 1; H = 2), check_board(T, N).
-check_board([3|T], N) :- N1 = N + 1, check_board(T, N1).
+check_board(Board) :- check_board(Board, 0).
+check_board([H|T], N) :- (H = 1; H = 2; H = 0), check_board(T, N).
+check_board([3|T], N) :- N1 is N + 1, check_board(T, N1).
 check_board([], 6).
 
 board(
@@ -289,47 +314,33 @@ turn_result :-
     hit_attempt(hit),
     turn(player),
     current_move(Row, Col),
-    write('Your attempt hit a ship at ('),
+    write('\n<<<Your attempt hit a ship at ('),
     write(Row), write(', '), write(Col),
-    write(')! :D'), nl.
-
-turn_result :- 
-    hit_attempt(sink),
-    turn(player),
-    write('Your sunk their ship!'), nl.
+    write(')! :D>>>\n'),
+    sleep(2).
 
 turn_result :-
     hit_attempt(miss),
     turn(player),
-    write('You missed!'), nl.
+    write('\n<<<You missed!>>>\n'),
+    sleep(2).
 
 turn_result :- 
     hit_attempt(hit),
     turn(computer),
     current_move(Row, Col),
-    write('Your enemy hit you at ('),
+    write('\n<<<Your enemy hit you at ('),
     write(Row), write(', '), write(Col),
-    write(')! :('), nl.
+    write(')! :(>>>\n').
 
 turn_result :- 
     hit_attempt(miss),
     turn(computer),
     current_move(Row, Col),
-    write('Your enemy fired at ('),
+    write('\n<<<Your enemy fired at ('),
     write(Row), write(', '), write(Col),
-    write(') but they missed! :D'), nl.
+    write(') but they missed! :D>>>\n').
     
-turn_result :- 
-    hit_attempt(sink),
-    turn(computer),
-    current_move(Row, Col),
-    write('Your enemy sunk you ship at ('),
-    write(Row), write(', '), write(Col),
-    write(')! D:'), nl.
-
-turn_result :-
-    \+ hit_attempt(_),
-    write('No turn attempted!'), nl.
 
 % Determines whether a board is valid for this game
 validateBoard(B) :-
@@ -458,6 +469,7 @@ clean :-
     clean_turn,
     clean_attempt,
     clean_current_move,
+    clean_computer_mode,
     !.
 
 clean_player_primary :- repeat, (retract( board(player_primary,_) ) -> false; true).
@@ -467,38 +479,124 @@ clean_computer_tracking :- repeat, (retract( board(computer_tracking,_) ) -> fal
 clean_turn :- repeat, (retract( turn(_) ) -> false; true).
 clean_attempt :- repeat, (retract( hit_attempt(_) ) -> false; true).
 clean_current_move :- repeat, (retract( current_move(_, _) ) -> false; true).
+clean_computer_mode :- repeat, (retract( computer_mode(_) ) -> false; true).
 
 %% AI
-computer_turn :-
+computer_move :-
     turn(computer),
-    computer_mode(destroy(Index)).
+    computer_mode(destroy(Index)),
+    
+    write('Selecting DESTROY move...\n'),
+    findAdjacents(Index, Neighbours),
+    board(computer_tracking, TrackingBoard),
+    canAttemptAdjacents(Neighbours, TrackingBoard, ValidNeighbours),
+    nth0(0, ValidNeighbours, Value),
+    toCoord(Value, coord(Row, Col)),
+    assert( current_move(Row, Col) ).
 
-computer_turn :-
+computer_move :-
     turn(computer),
-    computer_mode(hunt).
+    computer_mode(hunt),
+
+    write('Selecting HUNT move...\n'),
+    board(computer_tracking, TrackingBoard),
+    calculate(TrackingBoard, L),
+    sort(2, @>=, L, SortedList),
+    take(SortedList, 10, Index, Taken),
+    IndexTaken is Taken - 1,
+    random_between(0, IndexTaken, MoveIndex),
+    get(Index, MoveIndex, Value),
+    toCoord(Value, coord(Row, Col)),
+    assert( current_move(Row, Col) ).
 
 % If computer is in destroy mode and misses, keep going.
 react :-
+    turn(computer),
     computer_mode(destroy(_)),
-    hit_attempt(miss).
+    hit_attempt(miss),
+    write('Staying in DESTROY mode.\n'),
+    !
+    .
 
 react :-
+    turn(computer),
     computer_mode(destroy(_)),
     hit_attempt(hit),
-    retract( destroy(_) ),
-    assert( hunt ).
+    retract( computer_mode(_) ),
+    assert( computer_mode(hunt) ),
+    write('Switching to HUNT mode.\n'),
+    !
+    .
 
 react :-
+    turn(computer),
     computer_mode(hunt),
-    hit_attempt(miss).
+    hit_attempt(miss),
+    write('Staying in HUNT mode.\n'),
+    !
+    .
 
 react :-
+    turn(computer),
     computer_mode(hunt),
     hit_attempt(hit),
-    retract( hunt ),
+    retract( computer_mode(_) ),
     current_move(Index),
-    assert( destroy(Index) ).
+    assert( computer_mode(destroy(Index)) ),
+    write('Switching to DESTROY mode.\n'),
+    !
+    .
 
-react :-
-    \+ computer_mode(_),
-    assert( computer_mode(hunt) ).
+calculate(Board, L) :- calculate(0, Board, [], L).
+
+calculate(Index, Board, L1, [(Index, Num)|L2]) :-
+    Index > -1, Index < 25,
+    get(Board, Index, Value),
+    \+ attempted(Value),
+    findAdjacents(Index, Neighbours),
+    calculateAdjacents(Neighbours, Board, Num),
+    NextIndex is Index + 1,
+    calculate(NextIndex, Board, L1, L2).
+
+calculate(Index, Board, L1, L2) :-
+    Index > -1, Index < 25,
+    get(Board, Index, Value),
+    attempted(Value),
+    NextIndex is Index + 1, 
+    calculate(NextIndex, Board, L1, L2).
+
+calculate(Index, _, L, L) :- (Index < 0; Index > 24).
+
+calculateAdjacents([H|T], Board, Num) :-
+    get(Board, H, Value),
+    \+ attempted(Value),
+    calculateAdjacents(T, Board, X),
+    Num is X + 1.
+
+calculateAdjacents([H|T], Board, Num) :-
+    get(Board, H, Value),
+    attempted(Value),
+    calculateAdjacents(T, Board, Num).
+
+calculateAdjacents([], _, 0).
+
+canAttemptAdjacents(List, Board, L) :- checkNeighbours(List, Board, [], L).
+checkNeighbours([H|T], Board, L1, L2) :-
+    get(Board, H, Value),
+    attempted(Value),
+    checkNeighbours(T, Board, L1, L2).
+
+checkNeighbours([H|T], Board, L1, [H|L2]) :-
+    get(Board, H, Value),
+    \+ attempted(Value),
+    checkNeighbours(T, Board, L1, L2).
+
+checkNeighbours([], _, L, L).
+
+take(Spaces, Num, L, X) :- take(Spaces, Num, [], L, X).
+
+take(_, Num, L, L, 0) :- Num < 1.
+take([(Index, _)|T], Num, L1, [Index|L2], X1) :-
+    Num1 is Num - 1,
+    take(T, Num1, L1, L2, X),
+    X1 is X + 1.
