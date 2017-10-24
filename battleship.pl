@@ -50,7 +50,7 @@ end_game :-
 
 %% Reads the move of a player
 read_validate_move :-
-    write('Make your next move! fire(Row, Col)'), nl,
+    write('Make your next move! fire(Row, Col).'), nl,
     repeat, (
         (catch(read(fire(Row, Col)), error(_, _), false),
         validate(Row, Col),
