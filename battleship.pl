@@ -1,4 +1,4 @@
-:- dynamic game_won/0, current_move/2, turn/1, hit_attempt/1, turn_result/1, computer_mode/1.
+:- dynamic game_won/0, current_move/2, turn/1, hit_attempt/1, turn_result/1, computer_mode/1, board/2.
 
 current_move(Index) :- current_move(Row, Col), toIndex(coord(Row, Col), Index).
 
