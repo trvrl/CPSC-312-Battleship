@@ -488,6 +488,7 @@ validateBoard(B) :-
 
 % Determines if the spaces in a given board are occupied in a valid way.
 % In other words, are the 2X1 ship placements valid?
+% occupedValid(Board,NumberOfShipsTotal)
 occupiedValid(B,NST) :-
     getRow(0,B,R0),
     countShips(R0,CR0,0,NS1),
@@ -516,6 +517,7 @@ occupiedValid(B,NST) :-
     NS10 = NST.
 
 % Counts the number of ships on the given board
+% countShips(Board,ResultingBoard,InitialValue,ShipsCounted)
 countShips([],[],A,A).
 countShips([H|T],[H|CR],A,N) :- dif(H,1),countShips(T,CR,A,N).
 countShips([1],[1],A,A).
@@ -526,11 +528,13 @@ countShips([1,1,1|T],[1,1,1|CR],A,N) :- countShips(T,CR,A,N).
 countShips([1,1|T],[0,0|CR],A,N) :- A1 is A+1, countShips(T,CR,A1,N).
 
 % Finds the elements for the given column number in the 5x5 board; zero indexed
+% getColumn(ColumnNumber,Board,Column)
 getColumn(N,_,[]) :- N>24.
 getColumn(N,B,C) :-
     nth0(N,B,A), N1 is N+5, getColumn(N1,B,C1), C = [A|C1].
 
 % Finds the elements for the given row number in the 5x5 board; zero indexed
+% getColumn(RowNumber,Board,Row)
 getRow(N,B,R) :-
     N1 is N*5, N2 is N1+5, sliceList(R,N1,N2,B).
 
@@ -543,18 +547,22 @@ sliceList(L,S,E,[H|T]):-
 sliceList([],0,0,_).
 
 % Determines how many spaces are occupied with value V on the board
+% spacesOccupied(Board,NumberOfOccurrences,ValueToMatch)
 spacesOccupied([],0,_).
 spacesOccupied([S|B],N,V) :- number(V), S = V, spacesOccupied(B,N1,V), N is N1+1.
 spacesOccupied([S|B],N,V) :- number(V), S \= V, spacesOccupied(B,N,V).
 
 % Generates a valid random board for the computer opponent
+% generateComputerBoard(GeneratedBoard)
 generateComputerBoard(B) :- repeat, N = 3, createEmptyBoard(BA),placeShips(N,BA,B),(validateBoard(B) -> true, ! ; fail).
 
 % Places multiple ships on a board
+% placeShips(NumberOfShips,InitialBoard,ResultingBoard)
 placeShips(0,B,B).
 placeShips(N,BA,B) :- placeShip(BA,BR), N1 is N-1, placeShips(N1,BR,B).
 
 % Places a single ship on a board
+% placeShip(InitialBoard,ResultingBoard)
 placeShip(B,BR) :-
     randomPosition(P), 
     positionAvailable(B,P), 
@@ -568,6 +576,7 @@ placeShip(B,BR) :-
     replaceNth(BT,P1,1,BR).
     
 % Finds the adjacent squares of a given square P
+% findAdjacents(IndexOfBoard,ListOfAdjacentSquares)
 findAdjacents(P,L) :- member(P,[6,7,8,11,12,13,16,17,18]), P1 is P-5, P2 is P-1, P3 is P+1, P4 is P+5, L = [P1,P2,P3,P4].
 findAdjacents(P,L) :- member(P,[1,2,3]), P1 is P-1, P2 is P+1, P3 is P+5, L = [P1,P2,P3].
 findAdjacents(P,L) :- member(P,[5,10,15]), P1 is P-5, P2 is P+1, P3 is P+5, L = [P1,P2,P3].
@@ -579,16 +588,20 @@ findAdjacents(P,L) :- P = 20, L = [15,21].
 findAdjacents(P,L) :- P = 24, L = [19,23].
 
 % Returns true if the position chosen is unused
+% positionAvailable(Board,Position)
 positionAvailable(B,P) :- nth0(P,B,0).
 
-% replaceNth(L,P,V,R). Replaces nth element in list with a given value
+% Replaces nth element in list with a given value
+% replaceNth(InitialList,IndexToReplace,ReplacementValue,ResultingList).
 replaceNth([_|T],0,V,[V|T]).
 replaceNth([H|T],P,V,[H|R]) :- P > 0, P < 25, P1 is P - 1, replaceNth(T,P1,V,R). 
 
 % Choose a random position on the board
+% randomPosition(resultingPosition)
 randomPosition(P) :- random_between(0,24,P).
 
 % Creates an empty board
+% createEmptyBoard(ResultingBoard)
 createEmptyBoard(R) :- listOfZeros(25,R).
 
 % Creates a list of zeros
