@@ -59,12 +59,14 @@ read_validate_move :-
         (write('That\'s not a valid move. :( Try again.'), nl, fail)
     ),!.
 
+% Checks whether the given row and column values constitute a legal move for a player
 validate(Row, Col) :-
     number(Row), number(Col),
     turn(player),
     board(computer_primary, ComputerBoard),
     canAttempt(coord(Row, Col), ComputerBoard).
 
+% Checks whether the given row and column values constitute a legal move for a player
 validate(Row, Col) :-
     number(Row), number(Col),
     turn(computer),
@@ -76,17 +78,36 @@ validate(Row, Col) :-
 % updates computer_primary board and player_tracking board to a miss
 % (to a value of 2)
 update_boards :-
+    % on player turn
     turn(player),
+
+    % access the validated chosen move
     current_move(Index),
+
+    % access the computer_primary board
     board(computer_primary,ComputerBoard),
+
+    % check that the ComputerBoard at the given index is 0 (un-hit, no ship)
     nth0(Index,ComputerBoard,0),
+    
+    % access the player_tracking board
     board(player_tracking,PlayerTrackingBoard),
+
+    % check that the PlayerTrackingBoard at the given index is 0 (un-hit, unknown content)
     nth0(Index,PlayerTrackingBoard,0),
+    
+    % change value at index on the two selected boards to 2 (miss)
     replaceNth(ComputerBoard,Index,2,NewComputerBoard),
     replaceNth(PlayerTrackingBoard,Index,2,NewPlayerTrackingBoard),
+    
+    % update hit_attempt(X) to a miss
     update_attempt_miss,
+
+    % remove previous state of boards
     retract(board(computer_primary,_)),
     retract(board(player_tracking,_)),
+    
+    % declare newly updated boards
     assert(board(computer_primary,NewComputerBoard)),
     assert(board(player_tracking,NewPlayerTrackingBoard)). 
 
@@ -94,17 +115,36 @@ update_boards :-
 % updates computer_primary board and player_tracking board to a hit
 % (to a value of 3) 
 update_boards :-
+    % on player turn
     turn(player),
+
+    % access the validated chosen move
     current_move(Index),
+
+    % access the computer_primary board
     board(computer_primary,ComputerBoard),
+
+    % check that the ComputerBoard at the given index is 1 (un-hit, has ship)
     nth0(Index,ComputerBoard,1),
+
+    % access the player_tracking board
     board(player_tracking,PlayerTrackingBoard),
+
+    % check that the PlayerTrackingBoard at the given index is 0 (un-hit, unknown content)
     nth0(Index,PlayerTrackingBoard,0),
+
+    % change value at index on the two selected boards to 3 (hit)
     replaceNth(ComputerBoard,Index,3,NewComputerBoard),
     replaceNth(PlayerTrackingBoard,Index,3,NewPlayerTrackingBoard),
+    
+    % update hit_attempt(X) to a hit
     update_attempt_hit,
+
+    % remove previous state of boards
     retract(board(computer_primary,_)),
     retract(board(player_tracking,_)),
+
+    % declare newly updated boards
     assert(board(computer_primary,NewComputerBoard)),
     assert(board(player_tracking,NewPlayerTrackingBoard)).
 
@@ -112,17 +152,36 @@ update_boards :-
 % updates player_primary board and computer_tracking board to a miss
 % (to a value of 2)  
 update_boards :-
+    % on computer turn
     turn(computer),
+
+    % access the validated chosen move
     current_move(Index),
+
+    % access the player_primary board
     board(player_primary,PlayerBoard),
+
+    % check that the PlayerBoard at the given index is 0 (un-hit, no ship)
     nth0(Index,PlayerBoard,0),
+
+    % access the computer_tracking board
     board(computer_tracking,ComputerTrackingBoard),
+    
+    % check that the  ComputerTrackingBoard at the given index is 0 (un-hit, unknown content)
     nth0(Index,ComputerTrackingBoard,0),
+
+    % change value at index on the two selected boards to 2 (miss)
     replaceNth(PlayerBoard,Index,2,NewPlayerBoard),
     replaceNth(ComputerTrackingBoard,Index,2,NewComputerTrackingBoard),
+    
+    % update hit_attempt(X) to a miss
     update_attempt_miss,
+
+    % remove previous state of boards
     retract( board(player_primary,_) ),
     retract( board(computer_tracking,_) ),
+
+    % declare newly updated boards
     assert( board(player_primary,NewPlayerBoard) ),
     assert( board(computer_tracking,NewComputerTrackingBoard) ). 
 
@@ -130,27 +189,52 @@ update_boards :-
 % updates player_primary board and computer_tracking board to a hit
 % (to a value of 3) 
 update_boards :-
+    % on computer turn
     turn(computer),
+
+    % access the validated chosen move
     current_move(Index),
+
+    % access the player_primary board
     board(player_primary,PlayerBoard),
+
+    % check that the PlayerBoard at the given index is 1 (un-hit, has ship)
     nth0(Index,PlayerBoard,1),
+
+    % access the computer_tracking board
     board(computer_tracking,ComputerTrackingBoard),
+
+    % check that the PlayerBoard at the given index is 0 (un-hit, unknown content)
     nth0(Index,ComputerTrackingBoard,0),
+
+    % change value at index on the two selected boards to 3 (miss)
     replaceNth(PlayerBoard,Index,3,NewPlayerBoard),
     replaceNth(ComputerTrackingBoard,Index,3,NewComputerTrackingBoard),
+
+    % update hit_attempt(X) to a hit
     update_attempt_hit,
+
+    % remove previous state of boards
     retract( board(player_primary,_) ),
     retract( board(computer_tracking,_) ),
+
+    % declare newly updated boards
     assert( board(player_primary,NewPlayerBoard) ),
     assert( board(computer_tracking,NewComputerTrackingBoard) ).
 
+% If we attempt to update boards, but do not have a current move, validate move again
 update_boards :- turn(player), \+ current_move(_), read_validate_move.
 
+% Checks the winning conditions of the game on player turn
 check_win :-
     turn(player),
     write('Checkng if you won...'), nl,
     board(computer_primary,Board),
+
+    % checks for the winning conditions (all ships hit)
     spacesOccupied(Board, 6, 3),
+    
+    % assert game winning condition
     assert( game_won ),
     !
     .
@@ -158,16 +242,23 @@ check_win :-
 check_win :-
     turn(player),
     board(computer_primary,Board),
+
+    % if the winning condition has not been met
     \+ spacesOccupied(Board, 6, 3),
     write('Player hasn\'t won...:(\n'),
     !
     .
 
+% Checks the winning conditions of the game on computer turn
 check_win :-
     turn(computer),
     write('Checking if your enemy has won...'), nl,
     board(player_primary,Board),
+
+    % checks for the winning conditions (all ships hit)
     spacesOccupied(Board, 6, 3),
+
+    % assert game winning condition
     assert( game_won ),
     !
     .
@@ -175,45 +266,82 @@ check_win :-
 check_win :-
     turn(computer),
     board(player_primary,Board),
+
+    % if the winning condition has not been met
     \+ spacesOccupied(Board, 6, 3),
     write('Computer hasn\'t won...:D\n'),
     !
     .
 
+% Actions on player turn if the game has been won by the computer
 player_turn :- 
     game_won,
     nl,
     write("I'm so sorry you lost. I really am. Truly. Sorry. :-("),
     nl.
 
+% Actions on player turn
 player_turn :-
     \+ game_won,
     write('Your turn!'), nl,
+
+    % assert that this is currently the player turn
     assert( turn(player) ),
+
+    % retrieve user input and validate the move
     read_validate_move,
+
+    % update the boards on a valid move
     update_boards,
+
+    % display the results from this turn
     turn_result,
+
+    % check to see if the winning conditions have been met
     check_win,
+
+    % end turn
     retract( turn(player) ),
+
+    % remove last chosen move
     retract( current_move(_,_) ),
     computer_turn.
 
-computer_turn :- game_won,
+% Actions on computer turn if the game has been won by the player
+computer_turn :- 
+    game_won,
     nl,
     write("Congratulations! You beat a set of Prolog rules!"),
     nl.
 
+% Actions on computer turn
 computer_turn :-
     \+ game_won,
     write('Your enemy\'s turn. >:('), nl,
+
+    % assert that it is currently the computer turn
     assert( turn(computer) ),
+    
+    % calculate next best move for computer
     computer_move,
+
+    % update the boards on a valid move
     update_boards,
+
+    % display the results from this turn
     show_player,
     turn_result,
+
+    % check to see if the winning conditions have been met
     check_win,
+
+    % modify computer strategy based on result of move
     react,
+
+    % end computer turn
     retract( turn(computer) ),
+
+    % remove last chosen move
     retract( current_move(_,_) ),
     player_turn,!.
 
@@ -276,6 +404,7 @@ check_board([H|T], N) :- (H = 1; H = 2; H = 0), check_board(T, N).
 check_board([3|T], N) :- N1 is N + 1, check_board(T, N1).
 check_board([], 6).
 
+% A board is a 5X5 matrix for tracking ship placement and previously attempted hits
 board(
     empty_board, 
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -359,6 +488,7 @@ validateBoard(B) :-
 
 % Determines if the spaces in a given board are occupied in a valid way.
 % In other words, are the 2X1 ship placements valid?
+% occupedValid(Board,NumberOfShipsTotal)
 occupiedValid(B,NST) :-
     getRow(0,B,R0),
     countShips(R0,CR0,0,NS1),
@@ -387,6 +517,7 @@ occupiedValid(B,NST) :-
     NS10 = NST.
 
 % Counts the number of ships on the given board
+% countShips(Board,ResultingBoard,InitialValue,ShipsCounted)
 countShips([],[],A,A).
 countShips([H|T],[H|CR],A,N) :- dif(H,1),countShips(T,CR,A,N).
 countShips([1],[1],A,A).
@@ -397,11 +528,13 @@ countShips([1,1,1|T],[1,1,1|CR],A,N) :- countShips(T,CR,A,N).
 countShips([1,1|T],[0,0|CR],A,N) :- A1 is A+1, countShips(T,CR,A1,N).
 
 % Finds the elements for the given column number in the 5x5 board; zero indexed
+% getColumn(ColumnNumber,Board,Column)
 getColumn(N,_,[]) :- N>24.
 getColumn(N,B,C) :-
     nth0(N,B,A), N1 is N+5, getColumn(N1,B,C1), C = [A|C1].
 
 % Finds the elements for the given row number in the 5x5 board; zero indexed
+% getColumn(RowNumber,Board,Row)
 getRow(N,B,R) :-
     N1 is N*5, N2 is N1+5, sliceList(R,N1,N2,B).
 
@@ -414,18 +547,22 @@ sliceList(L,S,E,[H|T]):-
 sliceList([],0,0,_).
 
 % Determines how many spaces are occupied with value V on the board
+% spacesOccupied(Board,NumberOfOccurrences,ValueToMatch)
 spacesOccupied([],0,_).
 spacesOccupied([S|B],N,V) :- number(V), S = V, spacesOccupied(B,N1,V), N is N1+1.
 spacesOccupied([S|B],N,V) :- number(V), S \= V, spacesOccupied(B,N,V).
 
 % Generates a valid random board for the computer opponent
+% generateComputerBoard(GeneratedBoard)
 generateComputerBoard(B) :- repeat, N = 3, createEmptyBoard(BA),placeShips(N,BA,B),(validateBoard(B) -> true, ! ; fail).
 
 % Places multiple ships on a board
+% placeShips(NumberOfShips,InitialBoard,ResultingBoard)
 placeShips(0,B,B).
 placeShips(N,BA,B) :- placeShip(BA,BR), N1 is N-1, placeShips(N1,BR,B).
 
 % Places a single ship on a board
+% placeShip(InitialBoard,ResultingBoard)
 placeShip(B,BR) :-
     randomPosition(P), 
     positionAvailable(B,P), 
@@ -439,6 +576,7 @@ placeShip(B,BR) :-
     replaceNth(BT,P1,1,BR).
     
 % Finds the adjacent squares of a given square P
+% findAdjacents(IndexOfBoard,ListOfAdjacentSquares)
 findAdjacents(P,L) :- member(P,[6,7,8,11,12,13,16,17,18]), P1 is P-5, P2 is P-1, P3 is P+1, P4 is P+5, L = [P1,P2,P3,P4].
 findAdjacents(P,L) :- member(P,[1,2,3]), P1 is P-1, P2 is P+1, P3 is P+5, L = [P1,P2,P3].
 findAdjacents(P,L) :- member(P,[5,10,15]), P1 is P-5, P2 is P+1, P3 is P+5, L = [P1,P2,P3].
@@ -450,16 +588,20 @@ findAdjacents(P,L) :- P = 20, L = [15,21].
 findAdjacents(P,L) :- P = 24, L = [19,23].
 
 % Returns true if the position chosen is unused
+% positionAvailable(Board,Position)
 positionAvailable(B,P) :- nth0(P,B,0).
 
-% replaceNth(L,P,V,R). Replaces nth element in list with a given value
+% Replaces nth element in list with a given value
+% replaceNth(InitialList,IndexToReplace,ReplacementValue,ResultingList).
 replaceNth([_|T],0,V,[V|T]).
 replaceNth([H|T],P,V,[H|R]) :- P > 0, P < 25, P1 is P - 1, replaceNth(T,P1,V,R). 
 
 % Choose a random position on the board
+% randomPosition(resultingPosition)
 randomPosition(P) :- random_between(0,24,P).
 
 % Creates an empty board
+% createEmptyBoard(ResultingBoard)
 createEmptyBoard(R) :- listOfZeros(25,R).
 
 % Creates a list of zeros
