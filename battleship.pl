@@ -43,14 +43,14 @@ play_game :-
 
 %% Ends the game
 end_game :-
-    write('Thanks for Playing!'),
-    nl,
-    write("To play again, type:'run.' "),
+    write('Thanks for Playing!'), nl,
+    write('To play again, type: \'run.\' '),
     retract( game_won ).
 
 %% Reads the move of a player
 read_validate_move :-
     write('Make your next move! fire(Row, Col).'), nl,
+    write('The top is row 0 and the left is column 0.'), nl,
     repeat, (
         (catch(read(fire(Row, Col)), error(_, _), false),
         validate(Row, Col),
@@ -228,7 +228,6 @@ update_boards :- turn(player), \+ current_move(_), read_validate_move.
 % Checks the winning conditions of the game on player turn
 check_win :-
     turn(player),
-    write('Checkng if you won...'), nl,
     board(computer_primary,Board),
 
     % checks for the winning conditions (all ships hit)
@@ -245,14 +244,12 @@ check_win :-
 
     % if the winning condition has not been met
     \+ spacesOccupied(Board, 6, 3),
-    write('Player hasn\'t won...:(\n'),
     !
     .
 
 % Checks the winning conditions of the game on computer turn
 check_win :-
     turn(computer),
-    write('Checking if your enemy has won...'), nl,
     board(player_primary,Board),
 
     % checks for the winning conditions (all ships hit)
@@ -269,7 +266,6 @@ check_win :-
 
     % if the winning condition has not been met
     \+ spacesOccupied(Board, 6, 3),
-    write('Computer hasn\'t won...:D\n'),
     !
     .
 
@@ -277,7 +273,7 @@ check_win :-
 player_turn :- 
     game_won,
     nl,
-    write("I'm so sorry you lost. I really am. Truly. Sorry. :-("),
+    write('I\'m so sorry you lost. I really am. Truly. Sorry. :-('),
     nl.
 
 % Actions on player turn
@@ -311,7 +307,7 @@ player_turn :-
 computer_turn :- 
     game_won,
     nl,
-    write("Congratulations! You beat a set of Prolog rules!"),
+    write('Congratulations! You beat a set of Prolog rules!'),
     nl.
 
 % Actions on computer turn
@@ -444,39 +440,45 @@ show_player :-
     write('+---- Your Enemy ---+'), nl,
     show_board(PlayerTracking), nl,
     write('+---- Your Ships ---+'), nl,
-    show_board(PlayerBoard).
+    show_board(PlayerBoard),
+    write('|  S - Unhit Ship   |'), nl,
+    write('|  M - Missed       |'), nl,
+    write('|  H - Hit Ship     |'), nl,
+    show_line, nl.
 
 % Shows the player the result of the current turn.
 turn_result :- 
     hit_attempt(hit),
     turn(player),
     current_move(Row, Col),
-    write('\n<<<Your attempt hit a ship at ('),
+    write('\n[ You hit a ship at ('),
     write(Row), write(', '), write(Col),
-    write(')! :D>>>\n'),
+    write(')! :D ]\n'),
     sleep(2).
 
 turn_result :-
     hit_attempt(miss),
     turn(player),
-    write('\n<<<You missed!>>>\n'),
+    write('\n[ You missed! ]\n'),
     sleep(2).
 
 turn_result :- 
     hit_attempt(hit),
     turn(computer),
     current_move(Row, Col),
-    write('\n<<<Your enemy hit you at ('),
+    write('\n[ Your enemy hit you at ('),
     write(Row), write(', '), write(Col),
-    write(')! :(>>>\n').
+    write(')! :( ]\n'),
+    sleep(1).
 
 turn_result :- 
     hit_attempt(miss),
     turn(computer),
     current_move(Row, Col),
-    write('\n<<<Your enemy fired at ('),
+    write('\n[ Your enemy fired at ('),
     write(Row), write(', '), write(Col),
-    write(') but they missed! :D>>>\n').
+    write(') but they missed! :D ]\n'),
+    sleep(1).
     
 
 % Determines whether a board is valid for this game
@@ -638,7 +640,6 @@ computer_move :-
     turn(computer),
     computer_mode(destroy(Index)),
     
-    write('Selecting DESTROY move...\n'),
     findAdjacents(Index, Neighbours),
     board(computer_tracking, TrackingBoard),
     canAttemptAdjacents(Neighbours, TrackingBoard, ValidNeighbours),
@@ -650,7 +651,6 @@ computer_move :-
     turn(computer),
     computer_mode(hunt),
 
-    write('Selecting HUNT move...\n'),
     board(computer_tracking, TrackingBoard),
     calculate(TrackingBoard, L),
     sort(2, @>=, L, SortedList),
@@ -666,7 +666,6 @@ react :-
     turn(computer),
     computer_mode(destroy(_)),
     hit_attempt(miss),
-    write('Staying in DESTROY mode.\n'),
     !
     .
 
@@ -676,7 +675,6 @@ react :-
     hit_attempt(hit),
     retract( computer_mode(_) ),
     assert( computer_mode(hunt) ),
-    write('Switching to HUNT mode.\n'),
     !
     .
 
@@ -684,7 +682,6 @@ react :-
     turn(computer),
     computer_mode(hunt),
     hit_attempt(miss),
-    write('Staying in HUNT mode.\n'),
     !
     .
 
@@ -695,7 +692,6 @@ react :-
     retract( computer_mode(_) ),
     current_move(Index),
     assert( computer_mode(destroy(Index)) ),
-    write('Switching to DESTROY mode.\n'),
     !
     .
 
