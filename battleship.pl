@@ -45,11 +45,12 @@ play_game :-
 end_game :-
     write('Thanks for Playing!'),
     nl,
+    write("To play again, type:'run.' "),
     retract( game_won ).
 
 %% Reads the move of a player
 read_validate_move :-
-    write('Make your next move! fire(Row, Col)'), nl,
+    write('Make your next move! fire(Row, Col).'), nl,
     repeat, (
         (catch(read(fire(Row, Col)), error(_, _), false),
         validate(Row, Col),
@@ -179,7 +180,11 @@ check_win :-
     !
     .
 
-player_turn :- game_won.
+player_turn :- 
+    game_won,
+    nl,
+    write("I'm so sorry you lost. I really am. Truly. Sorry. :-("),
+    nl.
 
 player_turn :-
     \+ game_won,
@@ -193,7 +198,10 @@ player_turn :-
     retract( current_move(_,_) ),
     computer_turn.
 
-computer_turn :- game_won.
+computer_turn :- game_won,
+    nl,
+    write("Congratulations! You beat a set of Prolog rules!"),
+    nl.
 
 computer_turn :-
     \+ game_won,
@@ -275,9 +283,9 @@ board(
 
 %% Displays boards to the player
 toDisplay(0, ' ').
-toDisplay(1, '◼︎').
-toDisplay(2, '◎').
-toDisplay(3, '✕').
+toDisplay(1, 'S').
+toDisplay(2, 'M').
+toDisplay(3, 'H').
 
 show_board(B) :- show_line, show_board(B, 0).
 
@@ -346,6 +354,7 @@ turn_result :-
 validateBoard(B) :-
     length(B,25),
     spacesOccupied(B,6,1),
+    spacesOccupied(B,19,0),
     occupiedValid(B,3).
 
 % Determines if the spaces in a given board are occupied in a valid way.
@@ -396,7 +405,8 @@ getColumn(N,B,C) :-
 getRow(N,B,R) :-
     N1 is N*5, N2 is N1+5, sliceList(R,N1,N2,B).
 
-% Slices a list to create a smaller list given starting and ending positions
+% Slices a list to create a smaller list given starting and ending positions. Zero indexed.
+% This function is adapted from: https://stackoverflow.com/questions/16427076/prolog-create-sublist-given-two-indices
 sliceList(L,S,E,[_|T]):- 
     S>0, S<E, sliceList(L,S-1,E-1,T).
 sliceList(L,S,E,[H|T]):- 
@@ -428,7 +438,7 @@ placeShip(B,BR) :-
     replaceNth(B,P,1,BT),
     replaceNth(BT,P1,1,BR).
     
-% Finds the adjacent squares
+% Finds the adjacent squares of a given square P
 findAdjacents(P,L) :- member(P,[6,7,8,11,12,13,16,17,18]), P1 is P-5, P2 is P-1, P3 is P+1, P4 is P+5, L = [P1,P2,P3,P4].
 findAdjacents(P,L) :- member(P,[1,2,3]), P1 is P-1, P2 is P+1, P3 is P+5, L = [P1,P2,P3].
 findAdjacents(P,L) :- member(P,[5,10,15]), P1 is P-5, P2 is P+1, P3 is P+5, L = [P1,P2,P3].
